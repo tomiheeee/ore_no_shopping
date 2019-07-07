@@ -1,7 +1,8 @@
 class LinebotsController < ApplicationController
   require 'line/bot'
 
-  protect_from_forgery except:  [:callback]
+  # callbackアクションのCSRFトークン認証を無効
+  protect_from_forgery except: [:callback]
 
   def callback
     body = request.body.read
@@ -15,7 +16,9 @@ class LinebotsController < ApplicationController
       when Line::Bot::Event::Message
         case event.type
         when Line::Bot::Event::MessageType::Text
+          # 入力した文字をinputに格納
           input = event.message['text']
+          # search_and_create_messageメソッド内で、楽天APIを用いた商品検索、メッセージの作成を行う
           message = search_and_create_message(input)
           client.reply_message(event['replyToken'], message)
         end
@@ -38,9 +41,12 @@ class LinebotsController < ApplicationController
       c.application_id = ENV['RAKUTEN_APPID']
       c.affiliate_id = ENV['RAKUTEN_AFID']
     end
+    # 楽天の商品検索APIで画像がある商品の中で、入力値で検索して上から3件を取得する
+    # 商品検索+ランキングでの取得はできないため標準の並び順で上から3件取得する
     res = RakutenWebService::Ichiba::Item.search(keyword: input, hits: 3, imageFlag: 1)
     items = []
-    items = res.map{ |item| item }
+    # 取得したデータを使いやすいように配列に格納し直す
+    items = res.map{|item| item}
     make_reply_content(items)
   end
 
